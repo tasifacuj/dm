@@ -57,5 +57,8 @@
     <ClInclude Include="kd_tree\kd-tree.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="kd_tree\PointCloud.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

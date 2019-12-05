@@ -67,6 +67,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -102,6 +103,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="kd_tree\kd-tree.hpp" />
+    <ClInclude Include="kd_tree\PointCloud.hpp" />
     <ClInclude Include="kd_tree\PoolAllocator.hpp" />
     <ClInclude Include="x64\Debug\uic\ui_MainWindow.h" />
   </ItemGroup>

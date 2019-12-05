@@ -49,6 +49,7 @@
 #include <array>
 #include <vector>
 #include <algorithm>
+#include <type_traits>
 
 namespace dm {
 	namespace KdTree {
@@ -74,6 +75,7 @@ namespace dm {
 		public: // == TYPES ==
 			typedef typename Distance::ElementType ElementType;
 			typedef typename Distance::DistanceType DistanceType;
+			
 			struct Node {
 				/** Union used because a node can be either a LEAF node or a non-leaf node,
 				  * so both data fields are never used simultaneously 
@@ -85,7 +87,7 @@ namespace dm {
 					struct nonleaf {
 						int divfeat;					//!< Dimension used for subdivision.
 						DistanceType divlow, divhigh;	//!< The values used for subdivision.
-					};
+					} sub;
 				} node_type;
 				Node* child1;
 				Node* child2;
@@ -116,13 +118,13 @@ namespace dm {
 			static constexpr DistanceType Eps = 0.00001;
 		public: // == PUBLIC MEMBERS ==
 			std::vector<IndexType>	vind;
-			NodePtr					rootNode;
-			size_t					leafMaxSize;
-			size_t					size;				//!< Number of current points in the dataset
-			size_t					sizeAtIndexBuild;	//!< Number of points in the dataset when the
+			NodePtr					root_node;
+			size_t					m_leaf_max_size;
+			size_t					m_size;				//!< Number of current points in the dataset
+			size_t					m_size_at_index_build;	//!< Number of points in the dataset when the
 														//!< index was built
 			int						dim;				//!< Dimensionality of each data point
-			BoundingBox				rootBox;			//!< The KD-tree used to find neighbours
+			BoundingBox				root_bbox;			//!< The KD-tree used to find neighbours
 			/**
 			* Pooled memory allocator.
 			*
@@ -136,12 +138,12 @@ namespace dm {
 			  * buildIndex(). 
 			  */
 			void freeIndex(Derived &obj) {
-				obj.pool.free_all();
-				obj.rootNode = nullptr;
-				obj.sizeAtIndexBuild = 0;
+				obj.pool.freeAll();
+				obj.root_node = nullptr;
+				obj.m_size_at_index_build = 0;
 			}
 
-			inline dataset_get(const Derived& obj, size_t idx, int dim)const {
+			inline ElementType dataset_get(const Derived& obj, size_t idx, int dim)const {
 				return obj.dataset.kdtree_get_pt(idx, dim);
 			}
 
@@ -243,7 +245,7 @@ namespace dm {
 				}
 
 				// split in the middle
-				DistanceType splitVal = (box[cutfeat].low + box[cutfeat].high) / 2;
+				DistanceType splitVal = (bbox[cutfeat].low + bbox[cutfeat].high) / 2;
 				ElementType minElem, maxElem;
 				computeMinMax(obj, ind, count, cutfeat, minElem, maxElem);
 
@@ -275,7 +277,7 @@ namespace dm {
 			NodePtr divideTree(Derived &obj, const IndexType left, const IndexType right, BoundingBox &bbox) {
 				NodePtr node = obj.pool.template allocate<Node>();
 
-				if ((right - left) <= static_cast<IndexType>(obj.leafMaxSize)) {
+				if ((right - left) <= static_cast<IndexType>(obj.m_leaf_max_size)) {
 					node->child1 = node->child2 = nullptr;// mark as leaf node
 					node->node_type.lr.left = left;
 					node->node_type.lr.right = right;
@@ -308,7 +310,7 @@ namespace dm {
 					node->child2 = divideTree(obj, left + idx, right, right_box);
 
 					node->node_type.sub.divlow = left_bbox[cutfeat].high;
-					node->node_type.sub.divHigh = right_box[cutfeat].low;
+					node->node_type.sub.divhigh = right_box[cutfeat].low;
 					
 					for (int d = 0; d < DIM; d++) {
 						bbox[d].low = std::min(left_bbox[d].low, right_box[d].low);
@@ -319,5 +321,220 @@ namespace dm {
 				return node;
 			}
 		};
-	}
-}
+
+		//-------------------------------------------------------------------------------------------
+		//						KDTreeSingleIndexAdaptor
+		//-------------------------------------------------------------------------------------------
+		struct KDTreeSingleIndexAdaptorParams {
+			KDTreeSingleIndexAdaptorParams(size_t _leaf_max_size = 10) : leaf_max_size(_leaf_max_size) {}
+			size_t leaf_max_size;
+		};
+
+		template<typename T, typename = int> 
+		struct has_resize : std::false_type{};
+
+		template<typename T>
+		struct has_resize<T, decltype( (void)std::declval<T>().resize(1), 0)>
+			: std::true_type{};
+
+		/**
+		 * Free function to resize a resizable object
+		 */
+		template<typename Cnt>
+		inline typename std::enable_if<has_resize<Cnt>::value, void>::type resize(Cnt& c, const size_t num) {
+			c.resize(num);
+		}
+
+		/**
+		 * Free function that has no effects on non resizable containers (e.g.
+		 * std::array) It raises an exception if the expected size does not match
+		 */
+		template <typename Container>
+		inline typename std::enable_if<!has_resize<Container>::value, void>::type resize(Container &c, const size_t nElements) {
+			if (nElements != c.size())
+				throw std::logic_error("Try to change the size of a std::array.");
+		}
+
+		template<
+			typename Distance,
+			typename DatasetAdaptor,
+			int DIM,
+			typename IndexType = size_t
+		>
+		class KDTreeSingleIndexAdaptor : public KDTreeBaseClass
+		<
+			KDTreeSingleIndexAdaptor<Distance, DatasetAdaptor, DIM, IndexType>,
+			Distance,
+			DatasetAdaptor,
+			DIM,
+			IndexType
+		>
+		{
+		public: // == TYPES ==
+			typedef typename KDTreeBaseClass
+			<
+				KDTreeSingleIndexAdaptor
+				<
+					Distance, 
+					DatasetAdaptor, 
+					DIM,
+					IndexType
+				>,
+				Distance, 
+				DatasetAdaptor, 
+				DIM, 
+				IndexType
+			> BaseClassRef;
+			
+			typedef typename BaseClassRef::ElementType ElementType;
+			
+			typedef typename BaseClassRef::DistanceType DistanceType;
+
+			typedef typename BaseClassRef::Node Node;
+
+			typedef Node *NodePtr;
+
+			typedef typename BaseClassRef::Interval Interval;
+
+			/** Define "BoundingBox" as a fixed-size or variable-size container depending
+			 * on "DIM" 
+			 */
+			typedef typename BaseClassRef::BoundingBox BoundingBox;
+
+			/** Define "distance_vector_t" as a fixed-size or variable-size container
+			 * depending on "DIM" 
+			 */
+			typedef typename BaseClassRef::distance_vector_t distance_vector_t;
+
+		public: // == MEMBERS ==
+			const DatasetAdaptor&					dataset;
+			const KDTreeSingleIndexAdaptorParams	index_params;
+			Distance								distance;
+
+		public: // == CTORs ==
+			KDTreeSingleIndexAdaptor(const KDTreeSingleIndexAdaptor<Distance, DatasetAdaptor, DIM, IndexType>&) = delete;
+
+		  /**
+			* KDTree constructor
+			*
+			* Refer to docs in README.md or online in
+			* https://github.com/jlblancoc/nanoflann
+			*
+			* The KD-Tree point dimension (the length of each point in the datase, e.g. 3
+			* for 3D points) is determined by means of:
+			*  - The \a DIM template parameter if >0 (highest priority)
+			*  - Otherwise, the \a dimensionality parameter of this constructor.
+			*
+			* @param inputData Dataset with the input features
+			* @param params Basically, the maximum leaf node size
+			*/
+			KDTreeSingleIndexAdaptor(const int dimensionality,
+				const DatasetAdaptor &inputData,
+				const KDTreeSingleIndexAdaptorParams &params =
+				KDTreeSingleIndexAdaptorParams())
+				: dataset(inputData)
+				, index_params(params)
+				, distance(inputData) {
+				static_assert(DIM > 0, "Invalid dimension");
+				BaseClassRef::root_node = nullptr;
+				BaseClassRef::m_size = dataset.kdtree_get_point_count();
+				BaseClassRef::m_size_at_index_build = BaseClassRef::m_size;
+				BaseClassRef::dim = DIM;
+				BaseClassRef::m_leaf_max_size = params.leaf_max_size;
+				// Create a permutable array of indices to the input vectors.
+				init_vind();
+			}
+		public: // == FUNCTIONS ==
+			 /** Make sure the auxiliary list \a vind has the same size than the current
+			  * dataset, and re-generate if size has changed. 
+			  */
+			void init_vind() {
+				BaseClassRef::m_size = dataset.kdtree_get_point_count();
+
+				if (BaseClassRef::vind.size() != BaseClassRef::m_size)
+					BaseClassRef::vind.resize(BaseClassRef::m_size);
+
+				for (size_t idx = 0; idx < BaseClassRef::m_size; idx++) {
+					BaseClassRef::vind[idx] = idx;
+				}
+			}
+
+			void computeBoundingBox(BoundingBox &bbox) {
+				resize(bbox, DIM);
+
+				if ( !dataset.kdtree_get_bbox(bbox)) {
+					const size_t N = this->dataset.kdtree_get_point_count();
+
+					if (!N)
+						throw std::runtime_error("can't compute bounding box, no points specified");
+
+					for (int d = 0; d < DIM; d++) {
+						bbox[d].low = bbox[d].high = this->dataset_get(*this, 0, d);
+					}
+
+					for (size_t k = 1; k < N; k++) {
+						for (int d = 0; d < DIM; d++) {
+							if (this->dataset_get(*this, k, d) < bbox[d].low)
+								bbox[d].low = this->dataset_get(*this, k, d);
+							
+							if (this->dataset_get(*this, k, d) > bbox[d].high)
+								bbox[d].high = this->dataset_get(*this, k, d);
+						}
+					}
+				}
+			}
+
+			/**
+			 * Builds the index
+			 */
+			void buildIndex() {
+				BaseClassRef::m_size = dataset.kdtree_get_point_count();
+				BaseClassRef::m_size_at_index_build = BaseClassRef::m_size;
+				init_vind();
+				this->freeIndex( *this );
+				BaseClassRef::m_size_at_index_build = BaseClassRef::m_size;
+				
+				if (BaseClassRef::m_size == 0)
+					return;
+
+				computeBoundingBox(BaseClassRef::root_bbox);
+				BaseClassRef::root_node = this->divideTree(*this, 0, BaseClassRef::m_size, BaseClassRef::root_bbox);
+			}
+		};
+
+		//----------------------------------------------------------------------------------------------------------------------
+		//			L2_Simple_Adaptor	
+		//----------------------------------------------------------------------------------------------------------------------
+		/** Squared Euclidean (L2) distance functor (suitable for low-dimensionality
+		 * datasets, like 2D or 3D point clouds) Corresponding distance traits:
+		 * nanoflann::metric_L2_Simple \tparam T Type of the elements (e.g. double,
+		 * float, uint8_t) \tparam _DistanceType Type of distance variables (must be
+		 * signed) (e.g. float, double, int64_t)
+		 */
+		template<typename T, typename DataSource, typename DT = T>
+		struct L2_Simple_Adaptor {
+			typedef T	ElementType;
+			typedef DT	DistanceType;
+
+			const DataSource& data_source;
+
+			L2_Simple_Adaptor( const DataSource& ds ) : data_source( ds ){}
+
+			inline DistanceType evalMetric(const T* a, const size_t b_idx, size_t size)const {
+				DistanceType result = DistanceType();
+
+				for (size_t idx = 0; idx < size; ++idx) {
+					const DistanceType diff = a[idx] - data_source.kdtree_get_pt(b_idx, i);
+					result += diff * diff;
+				}
+
+				return result;
+			}
+
+			template<typename U, typename V>
+			inline DistanceType accum_dist(const U a, const V b, const size_t)const {
+				return (a - b) * (a - b);
+			}
+		};
+	}// namespace KDTree
+}// namespace dm
