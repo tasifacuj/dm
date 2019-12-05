@@ -101,7 +101,8 @@
     <QtRcc Include="MainWindow.qrc" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="kd_tree\kdtree.hpp" />
+    <ClInclude Include="kd_tree\kd-tree.hpp" />
+    <ClInclude Include="kd_tree\PoolAllocator.hpp" />
     <ClInclude Include="x64\Debug\uic\ui_MainWindow.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

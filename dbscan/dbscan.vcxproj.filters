@@ -51,7 +51,10 @@
     <ClInclude Include="x64\Debug\uic\ui_MainWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="kd_tree\kdtree.hpp">
+    <ClInclude Include="kd_tree\PoolAllocator.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kd_tree\kd-tree.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
