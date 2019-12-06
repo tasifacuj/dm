@@ -332,6 +332,9 @@ namespace dm {
 				return node;
 			}
 		
+			/*
+			 * count distances if point lays out of data area.
+			*/
 			DistanceType computeInitialDistances(const Derived& obj, const ElementType* vec, distance_vector_t& dists)const {
 				assert(vec);
 				DistanceType distsq = DistanceType();
@@ -659,16 +662,16 @@ namespace dm {
 				DistanceType diff2 = val - node->node_type.sub.divhigh;//val - right_box[low]
 				NodePtr bestChild;
 				NodePtr otherChild;
-				DistanceType cut_dist;
+				DistanceType cut_dist;// distance to otherChild
 
 				if (diff1 + diff2 < 0) {
 					bestChild = node->child1;
 					otherChild = node->child2;
-					cut_dist = distance.accum_dist(val, node->node_type.sub.divhigh, idx);
+					cut_dist = distance.accum_dist(val, node->node_type.sub.divhigh, idx);// right_box[low], dist to other child
 				}else {
 					bestChild = node->child2;
 					otherChild = node->child1;
-					cut_dist = distance.accum_dist(val, node->node_type.sub.divlow, idx);
+					cut_dist = distance.accum_dist(val, node->node_type.sub.divlow, idx);// lefbox[high]
 				}
 				
 				/* Call recursively to search next level down. */
@@ -677,10 +680,14 @@ namespace dm {
 				}
 
 				DistanceType dst = dists[ idx ];
+				// mindistq > 0 if query point lays out of area, sum of squared distances of all dimensions, euclidian dist
+				// cut_dist - dist to otherChild
+				// dists - distance squares from point to low, high, one per dimension. dist -> dim[d].low
+				// euclidian_dist_to_other_child = euclidian dist + dist to other child  - distance_of_cur_dimension ^ 2
 				mindistq = mindistq + cut_dist - dst;
 				dists[idx] = cut_dist;
 
-				if (mindistq * epsError <= result_set.worstDist()) {
+				if (mindistq * epsError <= result_set.worstDist()) {// should I check otherChild?
 					
 					if (!searchLevel(result_set, vec, otherChild, mindistq, dists, epsError)) {
 						// the resultset doesn't want to receive any more points, we're done

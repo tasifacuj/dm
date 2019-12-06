@@ -70,7 +70,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 void MainWindow::onClickMeClicked() {
 
-	kdtree_demo<float>(4);
+	//kdtree_demo<float>(20);
 	kdtree_demo<double>(100000);
 	qDebug() << __func__;
 }
