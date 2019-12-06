@@ -64,10 +64,12 @@ MainWindow::MainWindow(QWidget *parent)
 {
 	ui.setupUi(this);
 	QObject::connect(ui.btn_, &QPushButton::clicked, this, &MainWindow::onClickMeClicked);
+	srand(static_cast<unsigned int>(time(nullptr)));
 }
 
 
 void MainWindow::onClickMeClicked() {
+
 	kdtree_demo<float>(4);
 	kdtree_demo<double>(100000);
 	qDebug() << __func__;
