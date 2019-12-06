@@ -50,6 +50,7 @@
 #include <vector>
 #include <algorithm>
 #include <type_traits>
+#include <cassert>
 
 namespace dm {
 	namespace KdTree {
@@ -134,6 +135,14 @@ namespace dm {
 			*/
 			PoolAllocator			pool;
 		public:	// == FUNCTIONS ==
+			 /** Returns number of points in dataset  */
+			size_t size(const Derived &obj) const { return obj.m_size; }
+
+			/** Returns the length of each point in the dataset */
+			size_t veclen(const Derived &obj) {
+				return static_cast<size_t>(DIM > 0 ? DIM : obj.dim);
+			}
+
 			/** Frees the previously-built index. Automatically called within
 			  * buildIndex(). 
 			  */
@@ -309,16 +318,37 @@ namespace dm {
 					right_box[cutfeat].low = cutval;
 					node->child2 = divideTree(obj, left + idx, right, right_box);
 
-					node->node_type.sub.divlow = left_bbox[cutfeat].high;
-					node->node_type.sub.divhigh = right_box[cutfeat].low;
+					node->node_type.sub.divlow = left_bbox[cutfeat].high;// value, used for subdivision
+					node->node_type.sub.divhigh = right_box[cutfeat].low;// value, used for subdivision
 					
 					for (int d = 0; d < DIM; d++) {
 						bbox[d].low = std::min(left_bbox[d].low, right_box[d].low);
 						bbox[d].high = std::max(left_bbox[d].high, right_box[d].high);
 					}
+
+					//volatile bool tmp = true;
 				}
 
 				return node;
+			}
+		
+			DistanceType computeInitialDistances(const Derived& obj, const ElementType* vec, distance_vector_t& dists)const {
+				assert(vec);
+				DistanceType distsq = DistanceType();
+
+				for (int d = 0; d < DIM; d++) {
+					if (vec[d] < obj.root_bbox[d].low) {
+						dists[d] = obj.distance.accum_dist(vec[d], obj.root_bbox[d].low, d);
+						distsq += dists[d];
+					}
+
+					if (vec[d] > obj.root_bbox[d].high) {
+						dists[d] = obj.distance.accum_dist(vec[d], obj.root_bbox[d].high, d);
+						distsq += dists[d];
+					}
+				}
+
+				return distsq;
 			}
 		};
 
@@ -330,12 +360,87 @@ namespace dm {
 			size_t leaf_max_size;
 		};
 
+		/** Search options for KDTreeSingleIndexAdaptor::findNeighbors() */
+		struct SearchParams {
+			int checks = 0;		//!< Ignored parameter (Kept for compatibility with the FLANN
+								//!< interface).
+			float eps = 0.0f;	//!< search for eps-approximate neighbours (default: 0)
+			bool sorted = true;	//!< only for radius search, require neighbours sorted by
+
+								//!< distance (default: true)
+			SearchParams(int checks_IGNORED_ = 32, float epsilon = 0, bool s = true)
+				: checks( checks_IGNORED_ )
+				, eps( epsilon )
+				, sorted( s )
+			{}
+		};
+
+		struct IndexDist_Sorter {
+			/** PairType will be typically: std::pair<IndexType,DistanceType> */
+			template <typename PairType>
+			inline bool operator()(const PairType &p1, const PairType &p2) const {
+				return p1.second < p2.second;
+			}
+		};
+
+		/**
+		 * A result-set class used when performing a radius based search.
+		 */
+		template<typename DT, typename IT = size_t>
+		class RadiusResultSet {
+		public: // == TYPES ==
+			typedef DT DistanceType;
+			typedef IT IndexType;
+		public: // == MEMBERS ==
+			const DistanceType										radius;
+			std::vector< std::pair< IndexType, DistanceType > >&	m_indices_dists;
+		public: // == CTOR ==
+			RadiusResultSet(DistanceType r, std::vector< std::pair< IndexType, DistanceType > >& indices)
+				: radius(r)
+				, m_indices_dists(indices) {
+				init();
+			}
+
+		public: // == METHODS ==
+			void init() { clear(); }
+			
+			void clear() { m_indices_dists.clear(); }
+			
+			size_t size()const { return m_indices_dists.size(); }
+			
+			bool fool()const { return true; }
+			
+			bool addPoint(DistanceType dist, IndexType index) {
+				if (dist < radius) {
+					m_indices_dists.push_back({ index, dist });
+				}
+
+				return true;
+			}
+			
+			DistanceType worstDist()const { return radius; }
+
+			std::pair<IndexType, DistanceType> worst_item() const {
+				if (m_indices_dists.empty())
+					throw std::runtime_error("Can't invoke worst_item, indices empty");
+				using PT = std::pair<IndexType, DistanceType>;
+				auto it = std::max_element(m_indices_dists.begin(), m_indices_dists.end(), IndexDist_Sorter());
+				return *it;
+			}
+		};
+
 		template<typename T, typename = int> 
 		struct has_resize : std::false_type{};
 
 		template<typename T>
 		struct has_resize<T, decltype( (void)std::declval<T>().resize(1), 0)>
 			: std::true_type{};
+
+		template<typename T, typename = int>
+		struct has_assign : std::false_type {};
+
+		template<typename T>
+		struct has_assign<T, decltype((void)std::declval<T>().assign(1, 0), 0)> : std::true_type{};
 
 		/**
 		 * Free function to resize a resizable object
@@ -353,6 +458,25 @@ namespace dm {
 		inline typename std::enable_if<!has_resize<Container>::value, void>::type resize(Container &c, const size_t nElements) {
 			if (nElements != c.size())
 				throw std::logic_error("Try to change the size of a std::array.");
+		}
+
+		/**
+		 * Free function to assign to a container
+		 */
+		template<typename Container, typename T>
+		inline typename std::enable_if<has_assign<Container>::value, void>::type assign(Container& c, const size_t nElements, const T& value) {
+			c.assign(nElements, value);
+		}
+
+		/**
+		 * Free function to assign to a std::array
+		 */
+		template <typename Container, typename T>
+		inline typename std::enable_if<!has_assign<Container>::value, void>::type
+		assign(Container &c, const size_t nElements, const T &value) {
+			assert(c.size() >= nElements);
+			for (size_t i = 0; i < nElements; i++)
+				c[i] = value;
 		}
 
 		template<
@@ -500,6 +624,144 @@ namespace dm {
 				computeBoundingBox(BaseClassRef::root_bbox);
 				BaseClassRef::root_node = this->divideTree(*this, 0, BaseClassRef::m_size, BaseClassRef::root_bbox);
 			}
+		
+			/**
+			* Performs an exact search in the tree starting from a node.
+			* \tparam RESULTSET Should be any ResultSet<DistanceType>
+			* \return true if the search should be continued, false if the results are
+			* sufficient
+			*/
+			template<typename ResultSet>
+			bool searchLevel(ResultSet& result_set, const ElementType* vec, const NodePtr node, DistanceType mindistq, distance_vector_t& dists, const float epsError)const {
+				/* If this is a leaf node, then do check and return. */
+				if (node->child1 == nullptr && node->child2 == nullptr) {
+					DistanceType worst_dist = result_set.worstDist();
+
+					for (IndexType i = node->node_type.lr.left; i < node->node_type.lr.right; ++i) {
+						const IndexType index = BaseClassRef::vind[i];
+						DistanceType dist = distance.evalMetric(vec, index, DIM);
+
+						if (dist < worst_dist) {
+							if (!result_set.addPoint(dist, BaseClassRef::vind[i])) {
+								// the resultset doesn't want to receive any more points, we're done
+								// searching!
+								return false;
+							}
+						}
+					}
+					return true;
+				}// isLeaf ENDed
+
+				/* Which child branch should be taken first? */
+				int idx = node->node_type.sub.divfeat;
+				ElementType val = vec[idx];// value of query { 1, 1, 1 }, dimension
+				DistanceType diff1 = val - node->node_type.sub.divlow;//val - lefbox[high]
+				DistanceType diff2 = val - node->node_type.sub.divhigh;//val - right_box[low]
+				NodePtr bestChild;
+				NodePtr otherChild;
+				DistanceType cut_dist;
+
+				if (diff1 + diff2 < 0) {
+					bestChild = node->child1;
+					otherChild = node->child2;
+					cut_dist = distance.accum_dist(val, node->node_type.sub.divhigh, idx);
+				}else {
+					bestChild = node->child2;
+					otherChild = node->child1;
+					cut_dist = distance.accum_dist(val, node->node_type.sub.divlow, idx);
+				}
+				
+				/* Call recursively to search next level down. */
+				if (!searchLevel(result_set, vec, bestChild, mindistq, dists, epsError) ) {
+					return false;
+				}
+
+				DistanceType dst = dists[ idx ];
+				mindistq = mindistq + cut_dist - dst;
+				dists[idx] = cut_dist;
+
+				if (mindistq * epsError <= result_set.worstDist()) {
+					
+					if (!searchLevel(result_set, vec, otherChild, mindistq, dists, epsError)) {
+						// the resultset doesn't want to receive any more points, we're done
+						// searching!
+						return false;
+					}
+				}
+				dists[idx] = dst;
+				return true;
+			}// search level
+
+			/** \name Query methods
+			/**
+			 * Find set of nearest neighbors to vec[0:dim-1]. Their indices are stored
+			 * inside the result object.
+			 *
+			 * Params:
+			 *     result = the result object in which the indices of the
+			 * nearest-neighbors are stored vec = the vector for which to search the
+			 * nearest neighbors
+			 *
+			 * \tparam RESULTSET Should be any ResultSet<DistanceType>
+			 * \return  True if the requested neighbors could be found.
+			 * \sa knnSearch, radiusSearch
+			 */
+
+			template<typename ResultSet>
+			bool findNeighbors(ResultSet& result, const ElementType* vec, const SearchParams& searchParams)const {
+				assert(vec);
+
+				if (this->size(*this) == 0)
+					return false;
+
+				if (!BaseClassRef::root_node)
+					throw std::runtime_error("findNeighbors called before building the index.");
+
+				float epsError = 1 + searchParams.eps;
+				distance_vector_t dists;
+				auto zero = static_cast<decltype(result.worstDist())>(0);
+				assign(dists, DIM, zero);
+				DistanceType distsq = this->computeInitialDistances(*this, vec, dists);
+				searchLevel(result, vec, BaseClassRef::root_node, distsq, dists, epsError);
+				return result.fool();
+			}
+
+			/**
+			 * Just like radiusSearch() but with a custom callback class for each point
+			 * found in the radius of the query. See the source of RadiusResultSet<> as a
+			 * start point for your own classes. \sa radiusSearch
+			 */
+			template<typename SearchCallback>
+			size_t radiusSearchCustomCallback(const ElementType* query_point, SearchCallback & resultSet, const SearchParams& searchParams = SearchParams())const {
+				this->findNeighbors(resultSet, query_point, searchParams);
+				return resultSet.size();
+			}
+
+			/**
+			 * Find all the neighbors to \a query_point[0:dim-1] within a maximum radius.
+			 *  The output is given as a vector of pairs, of which the first element is a
+			 *  point index and the second the corresponding distance. Previous contents of
+			 * \a IndicesDists are cleared.
+			 *
+			 *  If searchParams.sorted==true, the output list is sorted by ascending
+			 * distances.
+			 *
+			 *  For a better performance, it is advisable to do a .reserve() on the vector
+			 * if you have any wild guess about the number of expected matches.
+			 *
+			 *  \sa knnSearch, findNeighbors, radiusSearchCustomCallback
+			 * \return The number of points within the given radius (i.e. indices.size()
+			 * or dists.size() )
+			*/
+			size_t radiusSearch(const ElementType* query_point, const DistanceType& radius, std::vector< std::pair< IndexType, DistanceType > >& IndicesDists, const SearchParams& searchParams)const {
+				RadiusResultSet<DistanceType, IndexType> resultSet(radius, IndicesDists);
+				const size_t nFound = radiusSearchCustomCallback(query_point, resultSet, searchParams);
+
+				if (searchParams.sorted)
+					std::sort(IndicesDists.begin(), IndicesDists.end(), IndexDist_Sorter());
+
+				return nFound;
+			}
 		};
 
 		//----------------------------------------------------------------------------------------------------------------------
@@ -524,7 +786,7 @@ namespace dm {
 				DistanceType result = DistanceType();
 
 				for (size_t idx = 0; idx < size; ++idx) {
-					const DistanceType diff = a[idx] - data_source.kdtree_get_pt(b_idx, i);
+					const DistanceType diff = a[idx] - data_source.kdtree_get_pt(b_idx, idx);
 					result += diff * diff;
 				}
 

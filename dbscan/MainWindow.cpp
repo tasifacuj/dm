@@ -39,6 +39,24 @@ void kdtree_demo(const size_t N)
 
 	my_kd_tree_t   index(3 /*dim*/, cloud, KdTree::KDTreeSingleIndexAdaptorParams(10 /* max leaf */));
 	index.buildIndex();
+	const num_t query_pt[3] = { 0.5, 0.5, 0.5 };
+	// ----------------------------------------------------------------
+	// radiusSearch(): Perform a search for the points within search_radius
+	// ----------------------------------------------------------------
+	{
+		const num_t search_radius = static_cast<num_t>(0.1);
+		std::vector<std::pair<size_t, num_t> >   ret_matches;
+
+		KdTree::SearchParams params;
+		//params.sorted = false;
+
+		const size_t nMatches = index.radiusSearch(&query_pt[0], search_radius, ret_matches, params);
+
+		qDebug() << "radiusSearch(): radius=" << search_radius << " -> " << nMatches << " matches";
+		
+		for (size_t i = 0; i < nMatches; i++)
+			qDebug() << "idx[" << i << "]=" << ret_matches[i].first << " dist[" << i << "]=" << ret_matches[i].second;
+	}
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -51,6 +69,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 void MainWindow::onClickMeClicked() {
 	kdtree_demo<float>(4);
+	kdtree_demo<double>(100000);
 	qDebug() << __func__;
 }
 
