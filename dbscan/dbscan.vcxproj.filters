@@ -60,5 +60,11 @@
     <ClInclude Include="kd_tree\PointCloud.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="dbscan\PointCloud2D.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dbscan\DbScan.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -3,8 +3,7 @@
 namespace dm {
 	namespace KdTree {
 		template <typename T>
-		struct PointCloud
-		{
+		struct PointCloud{
 			struct Point
 			{
 				T  x, y, z;
