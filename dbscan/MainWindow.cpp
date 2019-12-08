@@ -5,7 +5,7 @@
 #include "dbscan/DbScan.hpp"
 
 #include <QDebug>
-#include <QScatterSeries>
+
 
 #include <cstdlib>
 #include <array>
@@ -75,12 +75,12 @@ void kdtree_demo(const size_t N){
 }
 
 template <typename num_t>
-void dbscan_demo(const size_t N, QChartView& chartView) {
+void MainWindow::dbscanDemo(const size_t N, QChartView& chartView) {
 	dbscan::PointCloud2D<num_t> cloud;
 
 	// Generate points:
-	generateRandomPointCloud2D(cloud, N, 1.0f, 0.0f);
-	generateRandomPointCloud2D(cloud, N, 1.0f, 5.0f);
+	generateRandomPointCloud2D(cloud, N, 1.5f, 0.0f);
+	generateRandomPointCloud2D(cloud, N, 1.5f, 5.0f);
 	generateRandomPointCloud2D(cloud, 10, 10.0f, 0.0f);
 	
 	typedef KdTree::KDTreeSingleIndexAdaptor<
@@ -121,11 +121,20 @@ void dbscan_demo(const size_t N, QChartView& chartView) {
 		auto clusterIds = cloud.getClusterIds();
 		int i = 0;
 		for ( auto it = clusterIds.begin(), it_end = clusterIds.end(); it != it_end; it++, i++ ){
-			QScatterSeries* series = new QScatterSeries;
-			series->setName( QString( "cluster %1" ).arg( *it ) );
-			series->setMarkerShape(QScatterSeries::MarkerShapeCircle);
-			series->setMarkerSize(10);
-			series->setBrush(colors[i]);
+			QScatterSeries* series = nullptr;
+			if ( series_.count(*it)) {
+				auto s_it = series_.find(*it);
+				assert(s_it != series_.end());
+				series = s_it->second;
+				series->clear();
+			}else {
+				series = new QScatterSeries;
+				series->setName(QString("cluster %1").arg(*it));
+				series->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+				series->setMarkerSize(10);
+				series->setBrush(colors[i]);
+				series_.emplace( *it, series);
+			}
 			auto clusterPoints = cloud.getPointsByClusterId(*it);
 			
 			for (auto p : clusterPoints)
@@ -158,7 +167,7 @@ void MainWindow::onClickMeClicked() {
 
 	//kdtree_demo<float>(10);
 	//kdtree_demo<double>(100000);
-	dbscan_demo<float>(50, *ui.graphicsView);
+	dbscanDemo<float>(50, *ui.graphicsView);
 	qDebug() << __func__;
 	
 }
