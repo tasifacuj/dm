@@ -6,9 +6,11 @@ namespace dm {
 	namespace dbscan {
 		template <typename T>
 		struct PointCloud2D{
+			static constexpr int Noise = 0;
+			static constexpr int Undefined = -1;
 			struct Point{
 				T  x, y;
-				int label = -1;// cluster id
+				int label = Undefined;// cluster id
 			};
 
 			std::vector<Point>  pts;
@@ -35,6 +37,7 @@ namespace dm {
 
 			int label(const size_t idx)const { return pts[idx].label; }
 			void setLabel(const size_t idx, int label) { pts[idx].label = label; }
+			const Point& getPt( const size_t idx )const { return pts[idx]; }
 		};
 	}// namespace dbscan
 }// namespace dm

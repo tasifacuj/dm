@@ -51,6 +51,7 @@
 #include <algorithm>
 #include <type_traits>
 #include <cassert>
+#include <map>
 
 namespace dm {
 	namespace KdTree {
@@ -396,9 +397,9 @@ namespace dm {
 			typedef IT IndexType;
 		public: // == MEMBERS ==
 			const DistanceType										radius;
-			std::vector< std::pair< IndexType, DistanceType > >&	m_indices_dists;
+			std::map< IndexType, DistanceType >&	m_indices_dists;
 		public: // == CTOR ==
-			RadiusResultSet(DistanceType r, std::vector< std::pair< IndexType, DistanceType > >& indices)
+			RadiusResultSet(DistanceType r, std::map< IndexType, DistanceType >& indices)
 				: radius(r)
 				, m_indices_dists(indices) {
 				init();
@@ -415,21 +416,13 @@ namespace dm {
 			
 			bool addPoint(DistanceType dist, IndexType index) {
 				if (dist < radius) {
-					m_indices_dists.push_back({ index, dist });
+					m_indices_dists.emplace( index, dist );
 				}
 
 				return true;
 			}
 			
 			DistanceType worstDist()const { return radius; }
-
-			std::pair<IndexType, DistanceType> worst_item() const {
-				if (m_indices_dists.empty())
-					throw std::runtime_error("Can't invoke worst_item, indices empty");
-				using PT = std::pair<IndexType, DistanceType>;
-				auto it = std::max_element(m_indices_dists.begin(), m_indices_dists.end(), IndexDist_Sorter());
-				return *it;
-			}
 		};
 
 		template<typename T, typename = int> 
@@ -533,6 +526,9 @@ namespace dm {
 			 */
 			typedef typename BaseClassRef::distance_vector_t distance_vector_t;
 
+			typedef std::map<IndexType, ElementType >	QueryResult;
+
+			typedef SearchParams	QuerySearchParams;
 		public: // == MEMBERS ==
 			const DatasetAdaptor&					dataset;
 			const KDTreeSingleIndexAdaptorParams	index_params;
@@ -760,12 +756,12 @@ namespace dm {
 			 * \return The number of points within the given radius (i.e. indices.size()
 			 * or dists.size() )
 			*/
-			size_t radiusSearch(const ElementType* query_point, const DistanceType& radius, std::vector< std::pair< IndexType, DistanceType > >& IndicesDists, const SearchParams& searchParams)const {
+			size_t radiusSearch(const ElementType* query_point, const DistanceType& radius, std::map< IndexType, DistanceType >& IndicesDists, const SearchParams& searchParams)const {
 				RadiusResultSet<DistanceType, IndexType> resultSet(radius, IndicesDists);
 				const size_t nFound = radiusSearchCustomCallback(query_point, resultSet, searchParams);
 
-				if (searchParams.sorted)
-					std::sort(IndicesDists.begin(), IndicesDists.end(), IndexDist_Sorter());
+				/*if (searchParams.sorted)
+					std::sort(IndicesDists.begin(), IndicesDists.end(), IndexDist_Sorter());*/
 
 				return nFound;
 			}
