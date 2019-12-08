@@ -1,5 +1,8 @@
 # dm
 
-dbscan cluster attempt
+dbscan cluster attempt.
+Implements https://en.wikipedia.org/wiki/DBSCAN
+Test dataset - etc/t7.10k.dat
 
-dbtree taken from https://github.com/jlblancoc/nanoflann.git
+
+

@@ -1,6 +1,8 @@
 #pragma once
 #include <algorithm>
 
+#include <QDebug>
+
 namespace dm {
 	namespace dbscan {
 
@@ -11,7 +13,7 @@ namespace dm {
 			int		MinPts = 0;	//!< minimum number of points required to form a dense region
 
 			ScanParams(Real epsilon, int minPts)
-				: Eps(epsilon)
+				: Eps(epsilon * epsilon)//algorithm uses square of distance
 				, MinPts(minPts)
 			{}
 		};
@@ -46,6 +48,7 @@ namespace dm {
 
 					if (nMatches < scanParams.MinPts) {																		/*if |N| < minPts then */
 						dataset_.setLabel(p_idx, DataSet::Noise);																/*label(P) = Noise*/
+						qDebug() << "nMatches = " << nMatches << " < minPts" << scanParams.MinPts;
 						continue;
 					}
 

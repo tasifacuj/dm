@@ -2,6 +2,7 @@
 #include <vector>
 #include <stdexcept>
 #include <set>
+#include <limits>
 
 namespace dm {
 	namespace dbscan {
@@ -62,6 +63,10 @@ namespace dm {
 				}
 				return points;
 			}
+
+			/*T min()const {
+				T min = std::numeric_limits<T>::max();
+			}*/
 		};
 	}// namespace dbscan
 }// namespace dm

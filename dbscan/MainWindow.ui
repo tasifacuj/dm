@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1031</width>
-    <height>536</height>
+    <width>1089</width>
+    <height>795</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -33,9 +33,22 @@ simulation</string>
      <rect>
       <x>80</x>
       <y>40</y>
-      <width>931</width>
-      <height>391</height>
+      <width>941</width>
+      <height>651</height>
      </rect>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="loadFileBtn_">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>70</y>
+      <width>75</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Load</string>
     </property>
    </widget>
   </widget>
@@ -44,7 +57,7 @@ simulation</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1031</width>
+     <width>1089</width>
      <height>21</height>
     </rect>
    </property>
