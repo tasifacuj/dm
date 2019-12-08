@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
-    <height>400</height>
+    <width>1031</width>
+    <height>536</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,14 +17,25 @@
    <widget class="QPushButton" name="btn_">
     <property name="geometry">
      <rect>
-      <x>30</x>
-      <y>20</y>
-      <width>75</width>
-      <height>23</height>
+      <x>0</x>
+      <y>10</y>
+      <width>71</width>
+      <height>51</height>
      </rect>
     </property>
     <property name="text">
-     <string>ClickMe</string>
+     <string>Start
+simulation</string>
+    </property>
+   </widget>
+   <widget class="QChartView" name="graphicsView">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>40</y>
+      <width>931</width>
+      <height>391</height>
+     </rect>
     </property>
    </widget>
   </widget>
@@ -33,7 +44,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>600</width>
+     <width>1031</width>
      <height>21</height>
     </rect>
    </property>
@@ -49,6 +60,13 @@
   <widget class="QStatusBar" name="statusBar"/>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>QChartView</class>
+   <extends>QGraphicsView</extends>
+   <header>QtCharts</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="MainWindow.qrc"/>
  </resources>

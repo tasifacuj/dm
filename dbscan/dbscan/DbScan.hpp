@@ -79,6 +79,7 @@ namespace dm {
 					}
 
 				}
+				dataset_.setClusterNum(c);
 			}
 		};
 	} // namespace dbscan

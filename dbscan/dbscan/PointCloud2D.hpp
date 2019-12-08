@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <stdexcept>
+#include <set>
 
 namespace dm {
 	namespace dbscan {
@@ -13,7 +14,10 @@ namespace dm {
 				int label = Undefined;// cluster id
 			};
 
+			using ClusterSet = std::set<int>;
+
 			std::vector<Point>  pts;
+			int nClusters = 0;
 
 			// Must return the number of data points
 			inline size_t kdtree_get_point_count() const { return pts.size(); }
@@ -38,6 +42,26 @@ namespace dm {
 			int label(const size_t idx)const { return pts[idx].label; }
 			void setLabel(const size_t idx, int label) { pts[idx].label = label; }
 			const Point& getPt( const size_t idx )const { return pts[idx]; }
+			void setClusterNum(int n) { nClusters = n; }
+			int getClusterNum()const { return nClusters; }
+
+			ClusterSet getClusterIds() {
+				ClusterSet clusters;
+				for (size_t idx = 0; idx < size(); idx++) {
+					if (pts[idx].label != Undefined)
+						clusters.insert(pts[idx].label);
+				}
+				return clusters;
+			}
+
+			std::vector<Point> getPointsByClusterId(int cid) {
+				std::vector<Point> points;
+				for (size_t idx = 0; idx < pts.size(); idx++) {
+					if (pts[idx].label == cid)
+						points.push_back(pts[idx]);
+				}
+				return points;
+			}
 		};
 	}// namespace dbscan
 }// namespace dm
