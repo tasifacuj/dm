@@ -99,7 +99,7 @@ void MainWindow::dbscanDemo(const size_t N, QChartView& chartView) {
 	{
 		typedef dbscan::DbScan< dbscan::PointCloud2D<num_t>, my_kd_tree_t, size_t> DbScanT;
 		DbScanT dbscan(cloud, index);
-		dbscan::ScanParams scanParams(0.2, 5);
+		dbscan::ScanParams scanParams(sqrt(0.2), 5);
 		dbscan.evaluate( scanParams );
 
 		for (size_t idx = 0; idx < cloud.size(); idx++) {
