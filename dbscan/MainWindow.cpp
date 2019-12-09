@@ -135,13 +135,18 @@ void MainWindow::dbscanDemo(const size_t N, QChartView& chartView) {
 				series->setMarkerSize(10);
 				series->setBrush(colors[i]);
 				series_.emplace( *it, series);
+				chartView.chart()->addSeries(series);
 			}
 			auto clusterPoints = cloud.getPointsByClusterId(*it);
 			
 			for (auto p : clusterPoints)
 				*series << QPointF(p.x, p.y);
+		}
 
-			chartView.chart()->addSeries(series);
+		static bool first_time = true;
+
+
+		if (first_time) {
 			chartView.chart()->setTitle("DbScan example");
 			chartView.chart()->createDefaultAxes();
 			chartView.chart()->setDropShadowEnabled(false);
@@ -150,6 +155,7 @@ void MainWindow::dbscanDemo(const size_t N, QChartView& chartView) {
 			x->setRange(-1, 10);
 			QAbstractAxis* y = chartView.chart()->axisY();
 			y->setRange(-1, 10);
+			first_time = false;
 		}
 	}
 }
@@ -270,13 +276,20 @@ void MainWindow::scan(Cloud& cloud, QChartView& chartView) {
 				series->setMarkerSize(10);
 				series->setBrush(colors[i]);
 				series_.emplace(*it, series);
+				chartView.chart()->addSeries(series);
 			}
 			auto clusterPoints = cloud.getPointsByClusterId(*it);
 
 			for (auto p : clusterPoints)
 				*series << QPointF(p.x, p.y);
 
-			chartView.chart()->addSeries(series);
+			
+			
+		}
+
+		static bool scan_first = true;
+
+		if (scan_first) {
 			chartView.chart()->setTitle("DbScan example");
 			chartView.chart()->createDefaultAxes();
 			chartView.chart()->setDropShadowEnabled(false);
