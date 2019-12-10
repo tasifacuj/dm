@@ -222,7 +222,8 @@ void MainWindow::scan(Cloud& cloud, QChartView& chartView) {
 	{
 		typedef dbscan::DbScan< dbscan::PointCloud2D<num_t>, my_kd_tree_t, size_t> DbScanT;
 		DbScanT dbscan(cloud, index);
-		dbscan::ScanParams scanParams(10, 15);
+		dbscan::ScanParams scanParams(10, 15);// t7.10k.dat
+		//dbscan::ScanParams scanParams(17, 40);// t5.8k.dat
 		dbscan.evaluate(scanParams);
 		int clusters = cloud.getClusterNum();
 		qDebug() << "Got " << clusters << " clusters";
@@ -294,10 +295,18 @@ void MainWindow::scan(Cloud& cloud, QChartView& chartView) {
 			chartView.chart()->createDefaultAxes();
 			chartView.chart()->setDropShadowEnabled(false);
 			chartView.chart()->legend()->setMarkerShape(QLegend::MarkerShapeFromSeries);
+
+			// t7.10k
 			QAbstractAxis* x = chartView.chart()->axisX();
-			x->setRange(-1, 500);
+			x->setRange(-1, 700);
 			QAbstractAxis* y = chartView.chart()->axisY();
-			y->setRange(-1, 700);
+			y->setRange(-1, 600);
+
+			//t5.8k.dat
+			/*QAbstractAxis* x = chartView.chart()->axisX();
+			x->setRange(-1, 800);
+			QAbstractAxis* y = chartView.chart()->axisY();
+			y->setRange(-1, 200);*/
 		}
 	}
 }
